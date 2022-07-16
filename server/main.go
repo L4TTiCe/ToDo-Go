@@ -3,8 +3,10 @@ package main
 import (
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/L4TTiCe/ToDo-Go/server/config"
+	"github.com/L4TTiCe/ToDo-Go/server/routes"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -22,6 +24,7 @@ func loadEnv() {
 // configureLogger sets optional flags for the logger
 func configureLogger() {
 	log.Print("Configuring logger...")
+	log.SetOutput(os.Stdout)
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 }
 
@@ -29,9 +32,13 @@ func initializeRouter() *gin.Engine {
 	log.Println("Initializing router...")
 	router := gin.Default()
 
-	router.GET("/up", func(c *gin.Context) {
+	healthCheck := func(c *gin.Context) {
 		c.String(http.StatusOK, "Server is Up!")
-	})
+	}
+
+	router.GET("/up", healthCheck)
+
+	routes.ToDoRoute(router)
 
 	return router
 }
