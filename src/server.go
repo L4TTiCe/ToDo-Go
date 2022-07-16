@@ -4,6 +4,8 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/L4TTiCe/ToDo-Go/src/config"
+
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 )
@@ -37,6 +39,10 @@ func initializeRouter() *gin.Engine {
 func main() {
 	configureLogger()
 	loadEnv()
+
+	config.ConnectMongoDB()
+	defer config.CloseClientDB()
+
 	router := initializeRouter()
 
 	err := router.Run(":8080")

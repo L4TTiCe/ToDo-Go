@@ -1,2 +1,5 @@
 # Go vendor directory
 vendor
+
+# enviroment variables
+.env
