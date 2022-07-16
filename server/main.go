@@ -4,7 +4,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/L4TTiCe/ToDo-Go/src/config"
+	"github.com/L4TTiCe/ToDo-Go/server/config"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
