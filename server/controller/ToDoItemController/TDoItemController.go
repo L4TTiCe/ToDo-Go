@@ -2,6 +2,7 @@ package ToDoItemController
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/L4TTiCe/ToDo-Go/server/controller"
 	"github.com/L4TTiCe/ToDo-Go/server/dao/ToDoItemDao"
@@ -51,6 +52,8 @@ func Create(c *gin.Context) {
 func RetrieveAll(c *gin.Context) {
 	attrib := c.Request.URL.Query().Get("attrib")
 	sort := c.Request.URL.Query().Get("sort")
+	before := c.Request.URL.Query().Get("before")
+	after := c.Request.URL.Query().Get("after")
 
 	var sortOrder int
 
@@ -69,13 +72,69 @@ func RetrieveAll(c *gin.Context) {
 	var errorResponse *models.ErrorResponse
 
 	if attrib != "" {
-		if sort != "" {
-			result, errorResponse = ToDoItemDao.RetriveAll(attrib, sortOrder)
-		} else {
-			result, errorResponse = ToDoItemDao.RetriveAll(attrib, sortOrder)
+		var verb string
+		var date int64
+
+		if before != "" && after == "" {
+			verb = "lte"
+			intVal, err := strconv.Atoi(before)
+			if err != nil {
+				errorResponse = &models.ErrorResponse{
+					Status: http.StatusBadRequest,
+					Title:  "Invalid Date",
+					Detail: "Date must be a positive integer",
+				}
+				controller.PopulateErrorResponse(c, errorResponse)
+				c.JSON(errorResponse.Status, errorResponse)
+				return
+			}
+
+			date = int64(intVal)
+		} else if after != "" && before == "" {
+			verb = "gte"
+			intVal, err := strconv.Atoi(after)
+			if err != nil {
+				errorResponse = &models.ErrorResponse{
+					Status: http.StatusBadRequest,
+					Title:  "Invalid Date",
+					Detail: "Date must be a positive integer",
+				}
+				controller.PopulateErrorResponse(c, errorResponse)
+				c.JSON(errorResponse.Status, errorResponse)
+				return
+			}
+
+			date = int64(intVal)
+		} else if after != "" && before != "" {
+			errorResponse = &models.ErrorResponse{
+				Status: http.StatusBadRequest,
+				Title:  "Invalid Query",
+				Detail: "Must specify either before or after",
+			}
+			controller.PopulateErrorResponse(c, errorResponse)
+			c.JSON(errorResponse.Status, errorResponse)
+			return
 		}
+
+		if before == "" && after == "" {
+			result, errorResponse = ToDoItemDao.RetrieveAll(attrib, sortOrder)
+		} else {
+			result, errorResponse = ToDoItemDao.RetrieveAllWithParams(attrib, verb, date, sortOrder)
+		}
+
 	} else {
-		result, errorResponse = ToDoItemDao.RetriveAll("createdAt", sortOrder)
+		if before != "" || after != "" {
+			errorResponse = &models.ErrorResponse{
+				Status: http.StatusBadRequest,
+				Title:  "Invalid Query",
+				Detail: "Must specify attrib to use before or after",
+			}
+			controller.PopulateErrorResponse(c, errorResponse)
+			c.JSON(errorResponse.Status, errorResponse)
+			return
+		}
+
+		result, errorResponse = ToDoItemDao.RetrieveAll("createdAt", sortOrder)
 	}
 
 	if errorResponse != nil {

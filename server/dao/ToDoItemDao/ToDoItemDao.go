@@ -55,8 +55,8 @@ func Create(item *models.ToDoItem) (interface{}, *models.ErrorResponse) {
 	return result, nil
 }
 
-func RetriveAll(sortParam string, sortOrder int) ([]models.ToDoItem, *models.ErrorResponse) {
-	log.Println("ToDo: RetriveAll (sortParam: " + sortParam + ", sortOrder: " + strconv.Itoa(sortOrder) + ")")
+func RetrieveAll(sortParam string, sortOrder int) ([]models.ToDoItem, *models.ErrorResponse) {
+	log.Println("ToDo: RetrieveAll (sortParam: " + sortParam + ", sortOrder: " + strconv.Itoa(sortOrder) + ")")
 
 	// Validate sortParam
 	if sortParam != "" && sortParam != "title" && sortParam != "completed" && sortParam != "createdAt" && sortParam != "deadline" {
@@ -83,6 +83,85 @@ func RetriveAll(sortParam string, sortOrder int) ([]models.ToDoItem, *models.Err
 	// Create options for sorting
 	// Note: bson.D{} preserves order and is ideal for specifing sort ordering
 	cursor, err := config.ToDoItemsCollection.Find(ctx, bson.D{}, options.Find().SetSort(bson.D{{Key: sortParam, Value: sortOrder}}))
+	if err != nil {
+		log.Print(err)
+		return nil, &models.ErrorResponse{
+			Status: http.StatusInternalServerError,
+			Title:  err.Error(),
+		}
+	}
+
+	// Create a slice to hold all ToDoItems
+	var items []models.ToDoItem
+
+	// Append items from cursor to items
+	for cursor.Next(context.Background()) {
+		item := models.ToDoItem{}
+		err = cursor.Decode(&item)
+		if err != nil {
+			log.Print(err)
+			return nil, &models.ErrorResponse{
+				Status: http.StatusInternalServerError,
+				Title:  err.Error(),
+			}
+		}
+		items = append(items, item)
+	}
+
+	return items, nil
+}
+
+func RetrieveAllWithParams(attrib string, verb string, date int64, sortOrder int) ([]models.ToDoItem, *models.ErrorResponse) {
+	log.Println("ToDo: RetrieveAllWithParams (attrib: " + attrib + ", verb: " + verb + ", date: " + strconv.FormatInt(date, 10) + ")")
+
+	// Validate attrib
+	if attrib != "createdAt" && attrib != "deadline" {
+		return nil, &models.ErrorResponse{
+			Status: http.StatusBadRequest,
+			Title:  "Invalid Attribute",
+			Detail: "Attribute must be one of the following: createdAt, deadline",
+		}
+	}
+
+	// Validate verb
+	if verb != "gte" && verb != "lte" {
+		return nil, &models.ErrorResponse{
+			Status: http.StatusBadRequest,
+			Title:  "Invalid Verb",
+			Detail: "Verb must be one of the following: gte, lte",
+		}
+	}
+
+	// Validate date
+	if date < 0 {
+		return nil, &models.ErrorResponse{
+			Status: http.StatusBadRequest,
+			Title:  "Invalid Date",
+			Detail: "Date must be a positive integer",
+		}
+	}
+
+	// Validate sortOrder
+	if sortOrder != 1 && sortOrder != -1 {
+		return nil, &models.ErrorResponse{
+			Status: http.StatusBadRequest,
+			Title:  "Invalid Sort Order",
+			Detail: "Sort parameter must be one of the following: asc, desc, 1, -1",
+		}
+	}
+
+	// Create a context with a timeout of 10 seconds
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Create options for sorting
+	// Note: bson.D{} preserves order and is ideal for specifing sort ordering
+	sortOptions := options.Find().SetSort(bson.D{{Key: attrib, Value: sortOrder}})
+
+	// Create a filter for the query
+	filter := bson.D{{Key: attrib, Value: bson.D{{Key: "$" + verb, Value: date}}}}
+
+	cursor, err := config.ToDoItemsCollection.Find(ctx, filter, sortOptions)
 	if err != nil {
 		log.Print(err)
 		return nil, &models.ErrorResponse{
