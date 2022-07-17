@@ -11,6 +11,9 @@ func ToDoRoutes(router *gin.Engine) {
 
 	routerGroup.GET("/up", ToDoItemController.HealthCheck)
 
-	routerGroup.POST("/", ToDoItemController.CreateToDoItem)
-	routerGroup.GET("/", ToDoItemController.RetrieveAllToDoItems)
+	routerGroup.POST("/", ToDoItemController.Create)
+	routerGroup.GET("/", ToDoItemController.RetrieveAll)
+	routerGroup.GET("/:id", ToDoItemController.RetrieveOne)
+	routerGroup.PUT("/:id", ToDoItemController.UpdateOne)
+	routerGroup.DELETE("/:id", ToDoItemController.DeleteeOne)
 }

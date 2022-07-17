@@ -11,6 +11,7 @@ import (
 	"github.com/L4TTiCe/ToDo-Go/server/models"
 
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
@@ -108,4 +109,121 @@ func RetriveAll(sortParam string, sortOrder int) ([]models.ToDoItem, *models.Err
 	}
 
 	return items, nil
+}
+
+// RetriveOne retrieves a ToDoItem from the DB.
+// It takes an ID and returns a ToDoItem or an ErrorResponse.
+func RetriveOne(id string) (*models.ToDoItem, *models.ErrorResponse) {
+	log.Print("ToDo: RetriveOne (id: " + id + ")")
+
+	// convert id string to ObjectId
+	objectId, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return nil, &models.ErrorResponse{
+			Status: http.StatusBadRequest,
+			Title:  err.Error(),
+			Detail: "Invalid ID",
+		}
+	}
+
+	// Create a context with a timeout of 10 seconds
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Find item in DB
+	item := models.ToDoItem{}
+	err = config.ToDoItemsCollection.FindOne(ctx, bson.M{"_id": objectId}).Decode(&item)
+	if err != nil {
+		// Check if item was not found
+		if err.Error() == "mongo: no documents in result" {
+			return nil, &models.ErrorResponse{
+				Status: http.StatusNotFound,
+				Title:  "Item Not Found",
+				Detail: "Item with ID " + id + " not found",
+			}
+		} else {
+			log.Print(err)
+			return nil, &models.ErrorResponse{
+				Status: http.StatusInternalServerError,
+				Title:  err.Error(),
+			}
+		}
+	}
+
+	return &item, nil
+}
+
+// Update updates a ToDoItem in the DB.
+// It takes a ToDoItem struct and returns the update status or an ErrorResponse.
+func UpdateOne(id string, updatedItem *models.ToDoItem) (interface{}, *models.ErrorResponse) {
+	log.Print("ToDo: UpdateOne (id: " + id + ")")
+
+	// convert id string to ObjectId
+	objectId, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return nil, &models.ErrorResponse{
+			Status: http.StatusBadRequest,
+			Title:  err.Error(),
+			Detail: "Invalid ID",
+		}
+	}
+
+	// Create a context with a timeout of 10 seconds
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Item validation already performed when FindOne is called from contrller before this function is called
+
+	// Update item in DB
+	result, err := config.ToDoItemsCollection.ReplaceOne(ctx, bson.M{"_id": objectId}, &updatedItem)
+	if err != nil {
+		log.Print(err)
+		return nil, &models.ErrorResponse{
+			Status: http.StatusInternalServerError,
+			Title:  err.Error(),
+		}
+	}
+
+	return result, nil
+}
+
+// DeleteOne deletes a ToDoItem from the DB.
+// It takes an ID and returns the status of the delete Operation or an ErrorResponse.
+func DeleteOne(id string) (interface{}, *models.ErrorResponse) {
+	log.Print("ToDo: DeleteOne (id: " + id + ")")
+
+	// convert id string to ObjectId
+	objectId, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return nil, &models.ErrorResponse{
+			Status: http.StatusBadRequest,
+			Title:  err.Error(),
+			Detail: "Invalid ID",
+		}
+	}
+
+	// Create a context with a timeout of 10 seconds
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Delete item in DB
+	result, err := config.ToDoItemsCollection.DeleteOne(ctx, bson.M{"_id": objectId})
+	if err != nil {
+		log.Print(err)
+		return nil, &models.ErrorResponse{
+			Status: http.StatusInternalServerError,
+			Title:  err.Error(),
+		}
+	}
+
+	// Check if item was deleted
+	if result.DeletedCount == 0 {
+		return nil, &models.ErrorResponse{
+			Status: http.StatusNotFound,
+			Title:  "Item Not Found",
+			Detail: "Item with ID " + id + " not found",
+		}
+	}
+
+	return result, nil
 }

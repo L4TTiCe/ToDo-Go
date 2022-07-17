@@ -14,5 +14,5 @@ func PopulateErrorResponse(c *gin.Context, errorResponse *models.ErrorResponse) 
 	}
 
 	errorResponse.Timestamp = time.Now().UnixMilli()
-	errorResponse.Path = scheme + "://" + c.Request.Host + c.Request.RequestURI
+	errorResponse.Path = c.Request.Method + " " + scheme + "://" + c.Request.Host + c.Request.RequestURI
 }
