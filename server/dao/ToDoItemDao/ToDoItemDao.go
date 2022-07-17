@@ -111,8 +111,8 @@ func RetrieveAll(sortParam string, sortOrder int) ([]models.ToDoItem, *models.Er
 	return items, nil
 }
 
-func RetrieveAllWithParams(attrib string, verb string, date int64, sortOrder int) ([]models.ToDoItem, *models.ErrorResponse) {
-	log.Println("ToDo: RetrieveAllWithParams (attrib: " + attrib + ", verb: " + verb + ", date: " + strconv.FormatInt(date, 10) + ")")
+func RetrieveWithParams(attrib string, verb string, date int64, sortOrder int) ([]models.ToDoItem, *models.ErrorResponse) {
+	log.Println("ToDo: RetrieveWithParams (attrib: " + attrib + ", verb: " + verb + ", date: " + strconv.FormatInt(date, 10) + ")")
 
 	// Validate attrib
 	if attrib != "createdAt" && attrib != "deadline" {
@@ -190,10 +190,88 @@ func RetrieveAllWithParams(attrib string, verb string, date int64, sortOrder int
 	return items, nil
 }
 
-// RetriveOne retrieves a ToDoItem from the DB.
+func RetrieveBetween(attrib string, start int64, end int64, sortOrder int) ([]models.ToDoItem, *models.ErrorResponse) {
+	log.Println("ToDo: RetrieveBetween (attrib: " + attrib + ", start: " + strconv.FormatInt(start, 10) + ", end: " + strconv.FormatInt(end, 10) + ")")
+
+	// Validate attrib
+	if attrib != "createdAt" && attrib != "deadline" {
+		return nil, &models.ErrorResponse{
+			Status: http.StatusBadRequest,
+			Title:  "Invalid Attribute",
+			Detail: "Attribute must be one of the following: createdAt, deadline",
+		}
+	}
+
+	// Validate dates
+	if start < 0 || end < 0 {
+		return nil, &models.ErrorResponse{
+			Status: http.StatusBadRequest,
+			Title:  "Invalid Date",
+			Detail: "Date must be a positive integer. Check that start and end dates are positive integers",
+		}
+	}
+
+	if start > end {
+		return nil, &models.ErrorResponse{
+			Status: http.StatusBadRequest,
+			Title:  "Invalid Date",
+			Detail: "Start date must be less than end date",
+		}
+	}
+
+	// Validate sortOrder
+	if sortOrder != 1 && sortOrder != -1 {
+		return nil, &models.ErrorResponse{
+			Status: http.StatusBadRequest,
+			Title:  "Invalid Sort Order",
+			Detail: "Sort parameter must be one of the following: asc, desc, 1, -1",
+		}
+	}
+
+	// Create a context with a timeout of 10 seconds
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Create options for sorting
+	// Note: bson.D{} preserves order and is ideal for specifing sort ordering
+	sortOptions := options.Find().SetSort(bson.D{{Key: attrib, Value: sortOrder}})
+
+	// Create a filter for the query
+	filter := bson.D{{Key: attrib, Value: bson.D{{Key: "$gte", Value: start}, {Key: "$lte", Value: end}}}}
+
+	cursor, err := config.ToDoItemsCollection.Find(ctx, filter, sortOptions)
+	if err != nil {
+		log.Print(err)
+		return nil, &models.ErrorResponse{
+			Status: http.StatusInternalServerError,
+			Title:  err.Error(),
+		}
+	}
+
+	// Create a slice to hold all ToDoItems
+	var items []models.ToDoItem
+
+	// Append items from cursor to items
+	for cursor.Next(context.Background()) {
+		item := models.ToDoItem{}
+		err = cursor.Decode(&item)
+		if err != nil {
+			log.Print(err)
+			return nil, &models.ErrorResponse{
+				Status: http.StatusInternalServerError,
+				Title:  err.Error(),
+			}
+		}
+		items = append(items, item)
+	}
+
+	return items, nil
+}
+
+// RetrieveOne retrieves a ToDoItem from the DB.
 // It takes an ID and returns a ToDoItem or an ErrorResponse.
-func RetriveOne(id string) (*models.ToDoItem, *models.ErrorResponse) {
-	log.Print("ToDo: RetriveOne (id: " + id + ")")
+func RetrieveOne(id string) (*models.ToDoItem, *models.ErrorResponse) {
+	log.Print("ToDo: RetrieveOne (id: " + id + ")")
 
 	// convert id string to ObjectId
 	objectId, err := primitive.ObjectIDFromHex(id)

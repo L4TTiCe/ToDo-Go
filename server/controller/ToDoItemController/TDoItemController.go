@@ -51,9 +51,12 @@ func Create(c *gin.Context) {
 
 func RetrieveAll(c *gin.Context) {
 	attrib := c.Request.URL.Query().Get("attrib")
+
 	sort := c.Request.URL.Query().Get("sort")
 	before := c.Request.URL.Query().Get("before")
 	after := c.Request.URL.Query().Get("after")
+	start := c.Request.URL.Query().Get("start")
+	end := c.Request.URL.Query().Get("end")
 
 	var sortOrder int
 
@@ -75,7 +78,11 @@ func RetrieveAll(c *gin.Context) {
 		var verb string
 		var date int64
 
-		if before != "" && after == "" {
+		var startDate int64
+		var endDate int64
+
+		// Either before or after must be specified, together with a verb
+		if before != "" && after == "" && start == "" && end == "" { // before
 			verb = "lte"
 			intVal, err := strconv.Atoi(before)
 			if err != nil {
@@ -90,7 +97,7 @@ func RetrieveAll(c *gin.Context) {
 			}
 
 			date = int64(intVal)
-		} else if after != "" && before == "" {
+		} else if after != "" && before == "" && start == "" && end == "" { // after
 			verb = "gte"
 			intVal, err := strconv.Atoi(after)
 			if err != nil {
@@ -105,7 +112,7 @@ func RetrieveAll(c *gin.Context) {
 			}
 
 			date = int64(intVal)
-		} else if after != "" && before != "" {
+		} else if after != "" && before != "" && start == "" && end == "" { // after and before
 			errorResponse = &models.ErrorResponse{
 				Status: http.StatusBadRequest,
 				Title:  "Invalid Query",
@@ -114,20 +121,60 @@ func RetrieveAll(c *gin.Context) {
 			controller.PopulateErrorResponse(c, errorResponse)
 			c.JSON(errorResponse.Status, errorResponse)
 			return
-		}
-
-		if before == "" && after == "" {
-			result, errorResponse = ToDoItemDao.RetrieveAll(attrib, sortOrder)
-		} else {
-			result, errorResponse = ToDoItemDao.RetrieveAllWithParams(attrib, verb, date, sortOrder)
-		}
-
-	} else {
-		if before != "" || after != "" {
+		} else if (after != "" || before != "") && start != "" && end != "" { // start and end and after or before
 			errorResponse = &models.ErrorResponse{
 				Status: http.StatusBadRequest,
 				Title:  "Invalid Query",
-				Detail: "Must specify attrib to use before or after",
+				Detail: "Must specify either before / after or start and end",
+			}
+			controller.PopulateErrorResponse(c, errorResponse)
+			c.JSON(errorResponse.Status, errorResponse)
+			return
+		} else if after == "" && before == "" && start != "" && end != "" { // start and end
+			// validate start and end
+			intVal, err := strconv.Atoi(start)
+			if err != nil {
+				errorResponse = &models.ErrorResponse{
+					Status: http.StatusBadRequest,
+					Title:  "Invalid Date",
+					Detail: "Date must be a positive integer. Check start.",
+				}
+				controller.PopulateErrorResponse(c, errorResponse)
+				c.JSON(errorResponse.Status, errorResponse)
+				return
+			}
+
+			startDate = int64(intVal)
+
+			intVal, err = strconv.Atoi(end)
+			if err != nil {
+				errorResponse = &models.ErrorResponse{
+					Status: http.StatusBadRequest,
+					Title:  "Invalid Date",
+					Detail: "Date must be a positive integer. Check end.",
+				}
+				controller.PopulateErrorResponse(c, errorResponse)
+				c.JSON(errorResponse.Status, errorResponse)
+				return
+			}
+
+			endDate = int64(intVal)
+		}
+
+		if before == "" && after == "" && start == "" && end == "" { // no params (before, after, start, end)
+			result, errorResponse = ToDoItemDao.RetrieveAll(attrib, sortOrder)
+		} else if (before != "" || after != "") && start == "" && end == "" { // before or after
+			result, errorResponse = ToDoItemDao.RetrieveWithParams(attrib, verb, date, sortOrder)
+		} else if start != "" && end != "" { // start and end
+			result, errorResponse = ToDoItemDao.RetrieveBetween(attrib, startDate, endDate, sortOrder)
+		}
+
+	} else {
+		if before != "" || after != "" || start != "" || end != "" {
+			errorResponse = &models.ErrorResponse{
+				Status: http.StatusBadRequest,
+				Title:  "Invalid Query",
+				Detail: "Must specify an attribute to use with the before, after, start, or end parameters",
 			}
 			controller.PopulateErrorResponse(c, errorResponse)
 			c.JSON(errorResponse.Status, errorResponse)
@@ -154,7 +201,7 @@ func RetrieveOne(c *gin.Context) {
 	var result *models.ToDoItem
 	var errorResponse *models.ErrorResponse
 
-	result, errorResponse = ToDoItemDao.RetriveOne(id)
+	result, errorResponse = ToDoItemDao.RetrieveOne(id)
 
 	if errorResponse != nil {
 		// Populate error response before sending to client
@@ -170,7 +217,7 @@ func RetrieveOne(c *gin.Context) {
 func UpdateOne(c *gin.Context) {
 	id := c.Param("id")
 
-	item, errorResponse := ToDoItemDao.RetriveOne(id)
+	item, errorResponse := ToDoItemDao.RetrieveOne(id)
 
 	if errorResponse != nil {
 		// Populate error response before sending to client
@@ -207,7 +254,7 @@ func UpdateOne(c *gin.Context) {
 	c.JSON(http.StatusOK, &result)
 }
 
-func DeleteeOne(c *gin.Context) {
+func DeleteOne(c *gin.Context) {
 	id := c.Param("id")
 
 	var errorResponse *models.ErrorResponse

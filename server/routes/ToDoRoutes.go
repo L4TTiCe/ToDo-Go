@@ -15,5 +15,5 @@ func ToDoRoutes(router *gin.Engine) {
 	routerGroup.GET("/", ToDoItemController.RetrieveAll)
 	routerGroup.GET("/:id", ToDoItemController.RetrieveOne)
 	routerGroup.PUT("/:id", ToDoItemController.UpdateOne)
-	routerGroup.DELETE("/:id", ToDoItemController.DeleteeOne)
+	routerGroup.DELETE("/:id", ToDoItemController.DeleteOne)
 }
