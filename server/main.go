@@ -7,6 +7,7 @@ import (
 
 	"github.com/L4TTiCe/ToDo-Go/server/config"
 	"github.com/L4TTiCe/ToDo-Go/server/routes"
+	"github.com/gin-contrib/cors"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -31,6 +32,9 @@ func configureLogger() {
 func initializeRouter() *gin.Engine {
 	log.Println("Initializing router...")
 	router := gin.Default()
+
+	// Enable CORS for all requests
+	router.Use(cors.Default())
 
 	healthCheck := func(c *gin.Context) {
 		c.String(http.StatusOK, "Server is Up!")
