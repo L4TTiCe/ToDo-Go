@@ -5,8 +5,12 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func ToDoRoute(router *gin.Engine) {
+// ToDoRoutes contains the routes for the ToDo API.
+func ToDoRoutes(router *gin.Engine) {
 	routerGroup := router.Group("/todo")
 
 	routerGroup.GET("/up", ToDoItemController.HealthCheck)
+
+	routerGroup.POST("/", ToDoItemController.CreateToDoItem)
+	routerGroup.GET("/", ToDoItemController.RetrieveAllToDoItems)
 }

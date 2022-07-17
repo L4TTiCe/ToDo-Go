@@ -12,6 +12,8 @@ import (
 
 var DB *mongo.Client
 
+var ToDoItemsCollection *mongo.Collection
+
 func constructURI() string {
 	uri := os.Getenv("MONGODB_URI")
 
@@ -52,6 +54,7 @@ func ConnectMongoDB() {
 	log.Println("Successfully connected and pinged DB")
 
 	DB = client
+	linkCollections()
 }
 
 func CloseClientDB() {
@@ -59,4 +62,9 @@ func CloseClientDB() {
 	if err := DB.Disconnect(context.Background()); err != nil {
 		panic(err)
 	}
+}
+
+func linkCollections() {
+	log.Println("Linking Collections...")
+	ToDoItemsCollection = DB.Database("test").Collection("ToDoItems")
 }

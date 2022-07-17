@@ -38,7 +38,7 @@ func initializeRouter() *gin.Engine {
 
 	router.GET("/up", healthCheck)
 
-	routes.ToDoRoute(router)
+	routes.ToDoRoutes(router)
 
 	return router
 }
