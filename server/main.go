@@ -56,7 +56,7 @@ func main() {
 
 	router := initializeRouter()
 
-	err := router.Run(":8080")
+	err := router.Run()
 	if err != nil {
 		panic(err)
 	}
